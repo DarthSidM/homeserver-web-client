@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+
 export default function SignupPage() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
@@ -54,25 +56,27 @@ export default function SignupPage() {
     }
 
     try {
-      // TODO: Add your signup API call here
-      // Example:
-      // const response = await fetch('/api/auth/signup', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     username: formData.username,
-      //     fullname: formData.fullname,
-      //     password: formData.password,
-      //   }),
-      // })
-      // const data = await response.json()
-      // if (!response.ok) throw new Error(data.message)
+      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: formData.username,
+          name: formData.fullname,
+          password: formData.password,
+        }),
+      })
 
-      // Simulate API delay for demo
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || "Signup failed. Please try again.")
+      }
 
-      // Navigate to login on success
-      navigate("/login")
+      if (data.token) {
+        localStorage.setItem("token", data.token)
+      }
+
+      // Navigate to home on success
+      navigate("/")
     } catch (err) {
       setError(err.message || "Signup failed. Please try again.")
     } finally {

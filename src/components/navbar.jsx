@@ -9,11 +9,8 @@ export function Navbar() {
   const navigate = useNavigate()
 
   const handleLogout = async () => {
-    // TODO: Add your logout API call here
-    // Example:
-    // await fetch('/api/auth/logout', { method: 'POST' })
-    // Clear any stored tokens/session
-    // localStorage.removeItem('token')
+    
+    localStorage.removeItem('token')
     
     // Redirect to login page
     navigate("/login")

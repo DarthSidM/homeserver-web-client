@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
@@ -40,20 +42,23 @@ export default function LoginPage() {
     }
 
     try {
-      // TODO: Add your login API call here
-      // Example:
-      // const response = await fetch('/api/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData),
-      // })
-      // const data = await response.json()
-      // if (!response.ok) throw new Error(data.message)
-      // Store token/session as needed
-      // localStorage.setItem('token', data.token)
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password,
+        }),
+      })
 
-      // Simulate API delay for demo
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || "Login failed. Please try again.")
+      }
+
+      if (data.token) {
+        localStorage.setItem("token", data.token)
+      }
 
       // Navigate to home on success
       navigate("/")
