@@ -1,10 +1,17 @@
 
+import { Navigate, Route, Routes } from 'react-router-dom'
+import HomePage from './pages/HomePage'
+import LoginPage from './pages/Login'
+import SignupPage from './pages/Signup'
 
 function App() {
   return (
-    <>
-      <p className="text-green-500">hello worlds</p>
-    </>
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
 
