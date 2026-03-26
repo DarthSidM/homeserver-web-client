@@ -1,11 +1,15 @@
 "use client"
 
 import { Fragment, useCallback, useEffect, useState } from "react"
+import { Navigate } from "react-router-dom"
 import { Navbar } from "@/components/navbar"
 import { Sidebar } from "@/components/sidebar"
 import { FileGrid } from "@/components/file-grid"
 import { CreateModal } from "@/components/create-modal"
-import { apiRequest } from "@/lib/api-interceptor"
+import { loadNodes, handleRename, handleDelete, handleFavourite } from "@/apis/nodeOperations"
+import { uploadFiles, downloadFile } from "@/apis/fileOperations"
+import { createDirectory } from "@/apis/directoryOperations"
+import { handleGoToRoot, handleGoToPathIndex, openItem } from "@/apis/navigationHelper"
 
 const normalizeNode = (node) => {
   const nodeType = (node.type || node.Type || "").toLowerCase()
@@ -31,15 +35,18 @@ export default function HomePage() {
   const [requestError, setRequestError] = useState("")
   const [currentParentId, setCurrentParentId] = useState(null)
   const [pathStack, setPathStack] = useState([])
+  const token = localStorage.getItem("token")
 
-  const loadNodes = useCallback(async (parentId) => {
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
+
+  const loadNodesHandler = useCallback(async (parentId) => {
     setIsLoading(true)
     setRequestError("")
 
     try {
-      const query = parentId ? `?parent_id=${encodeURIComponent(parentId)}` : "?parent_id="
-      const response = await apiRequest(`/nodes${query}`, { method: "GET" })
-      const nodes = response?.data?.nodes || []
+      const nodes = await loadNodes(parentId)
       setFiles(nodes.map(normalizeNode))
     } catch (error) {
       const message = error?.response?.data?.error || error?.message || "Failed to load nodes"
@@ -53,8 +60,8 @@ export default function HomePage() {
 
   // Load nodes when directory context changes.
   useEffect(() => {
-    loadNodes(currentParentId)
-  }, [currentParentId, loadNodes])
+    loadNodesHandler(currentParentId)
+  }, [currentParentId, loadNodesHandler])
 
   // Handle file upload
   const handleFileUpload = async (uploadedFiles) => {
@@ -63,25 +70,9 @@ export default function HomePage() {
     setIsLoading(true)
     setRequestError("")
 
-    const uploadPath = currentParentId
-      ? `/files/upload/${encodeURIComponent(currentParentId)}`
-      : "/files/upload"
-
     try {
-      for (const file of uploadedFiles) {
-        const formData = new FormData()
-        formData.append("file", file)
-
-        await apiRequest(uploadPath, {
-          method: "POST",
-          data: formData,
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        })
-      }
-
-      await loadNodes(currentParentId)
+      await uploadFiles(uploadedFiles, currentParentId)
+      await loadNodesHandler(currentParentId)
     } catch (error) {
       const message = error?.response?.data?.error || error?.message || "Failed to upload file"
       setRequestError(message)
@@ -100,14 +91,8 @@ export default function HomePage() {
 
     try {
       setRequestError("")
-      await apiRequest("/directories", {
-        method: "POST",
-        data: {
-          name: trimmedName,
-          parent_id: currentParentId,
-        },
-      })
-      await loadNodes(currentParentId)
+      await createDirectory(trimmedName, currentParentId)
+      await loadNodesHandler(currentParentId)
     } catch (error) {
       const message = error?.response?.data?.error || error?.message || "Failed to create directory"
       setRequestError(message)
@@ -116,20 +101,11 @@ export default function HomePage() {
 
   // Handle opening a file or folder
   const handleOpen = (item) => {
-    if (item.type === "folder") {
-      setPathStack((prev) => [...prev, { id: item.id, name: item.name }])
-      setCurrentParentId(item.id)
-      return
-    } else {
-      // TODO: Open file preview or download
-      // Example:
-      // window.open(`/api/files/${item.id}/preview`)
-      console.log("[v0] Opening file:", item.name)
-    }
+    openItem(item, setPathStack, setCurrentParentId)
   }
 
   // Handle file/folder rename
-  const handleRename = async (item) => {
+  const handleRenameNode = async (item) => {
     const newName = window.prompt("Enter new name:", item.name)
     if (newName === null) return
 
@@ -145,11 +121,8 @@ export default function HomePage() {
 
     try {
       setRequestError("")
-      await apiRequest(`/nodes/${item.id}`, {
-        method: "PATCH",
-        data: { new_name: trimmedName },
-      })
-      await loadNodes(currentParentId)
+      await handleRename(item.id, trimmedName)
+      await loadNodesHandler(currentParentId)
     } catch (error) {
       const message = error?.response?.data?.error || error?.message || "Failed to rename node"
       setRequestError(message)
@@ -157,60 +130,48 @@ export default function HomePage() {
   }
 
   // Handle file/folder deletion
-  const handleDelete = async (item) => {
+  const handleDeleteNode = async (item) => {
     const confirmed = window.confirm(`Delete "${item.name}"?`)
     if (!confirmed) return
 
     try {
       setRequestError("")
-      await apiRequest(`/nodes/${item.id}`, {
-        method: "DELETE",
-      })
-      await loadNodes(currentParentId)
+      await handleDelete(item.id)
+      await loadNodesHandler(currentParentId)
     } catch (error) {
       const message = error?.response?.data?.error || error?.message || "Failed to delete node"
       setRequestError(message)
     }
   }
 
-  // Handle file download
-  const handleDownload = async (item) => {
+  // Handle marking as favourite
+  const handleFavouriteNode = async (item) => {
     try {
       setRequestError("")
+      await handleFavourite(item.id)
+    } catch (error) {
+      const message = error?.response?.data?.error || error?.message || "Failed to add to favourites"
+      setRequestError(message)
+    }
+  }
 
-      const response = await apiRequest(`/files/download/${encodeURIComponent(item.id)}`, {
-        method: "GET",
-        responseType: "blob",
-      })
-
-      const contentDisposition = response?.headers?.["content-disposition"] || ""
-      const fileNameMatch = contentDisposition.match(/filename="?([^\"]+)"?/i)
-      const downloadName = fileNameMatch?.[1] || item.name || "download"
-
-      const blob = new Blob([response.data])
-      const blobUrl = window.URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = blobUrl
-      link.download = downloadName
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(blobUrl)
+  // Handle file download
+  const handleDownloadFile = async (item) => {
+    try {
+      setRequestError("")
+      await downloadFile(item.id, item.name)
     } catch (error) {
       const message = error?.response?.data?.error || error?.message || "Failed to download file"
       setRequestError(message)
     }
   }
 
-  const handleGoToRoot = () => {
-    setPathStack([])
-    setCurrentParentId(null)
+  const handleGoToRootClicked = () => {
+    handleGoToRoot(setPathStack, setCurrentParentId)
   }
 
-  const handleGoToPathIndex = (index) => {
-    const nextPath = pathStack.slice(0, index + 1)
-    setPathStack(nextPath)
-    setCurrentParentId(nextPath[nextPath.length - 1]?.id || null)
+  const handleGoToPathIndexClicked = (index) => {
+    handleGoToPathIndex(index, pathStack, setPathStack, setCurrentParentId)
   }
 
   return (
@@ -230,7 +191,7 @@ export default function HomePage() {
             <div className="mt-2 flex items-center gap-2 overflow-x-auto text-sm text-muted-foreground">
               <button
                 type="button"
-                onClick={handleGoToRoot}
+                onClick={handleGoToRootClicked}
                 className="whitespace-nowrap hover:text-foreground"
               >
                 Root
@@ -240,7 +201,7 @@ export default function HomePage() {
                   <span>/</span>
                   <button
                     type="button"
-                    onClick={() => handleGoToPathIndex(index)}
+                    onClick={() => handleGoToPathIndexClicked(index)}
                     className="whitespace-nowrap hover:text-foreground"
                   >
                     {entry.name}
@@ -263,9 +224,10 @@ export default function HomePage() {
             <FileGrid
               items={files}
               onOpen={handleOpen}
-              onRename={handleRename}
-              onDelete={handleDelete}
-              onDownload={handleDownload}
+              onRename={handleRenameNode}
+              onDelete={handleDeleteNode}
+              onDownload={handleDownloadFile}
+              onFavourite={handleFavouriteNode}
             />
           )}
         </main>

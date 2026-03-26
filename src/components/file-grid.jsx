@@ -9,7 +9,8 @@ import {
   FileCode,
   FileArchive,
   Folder,
-  MoreVertical
+  MoreVertical,
+  Star
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -60,7 +61,7 @@ function formatDate(dateString) {
   })
 }
 
-function FileItem({ item, onOpen, onRename, onDelete, onDownload }) {
+function FileItem({ item, onOpen, onRename, onDelete, onDownload, onFavourite }) {
   const Icon = getFileIcon(item.type, item.mimeType)
   const isFolder = item.type === "folder"
 
@@ -69,6 +70,19 @@ function FileItem({ item, onOpen, onRename, onDelete, onDownload }) {
       className="group relative flex flex-col items-center rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md"
       onDoubleClick={() => onOpen?.(item)}
     >
+      {/* Favourite Button */}
+      <div className="absolute left-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-yellow-500"
+          onClick={() => onFavourite?.(item)}
+        >
+          <Star className="h-4 w-4" />
+          <span className="sr-only">Add to Favourites</span>
+        </Button>
+      </div>
+
       {/* Icon */}
       <div className={`mb-3 flex h-16 w-16 items-center justify-center rounded-lg ${isFolder ? "bg-primary/10" : "bg-muted"}`}>
         <Icon className={`h-8 w-8 ${isFolder ? "text-primary" : "text-muted-foreground"}`} />
@@ -125,7 +139,7 @@ function FileItem({ item, onOpen, onRename, onDelete, onDownload }) {
   )
 }
 
-export function FileGrid({ items, onOpen, onRename, onDelete, onDownload }) {
+export function FileGrid({ items, onOpen, onRename, onDelete, onDownload, onFavourite }) {
   if (!items || items.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center text-center">
@@ -158,6 +172,7 @@ export function FileGrid({ items, onOpen, onRename, onDelete, onDownload }) {
                 onRename={onRename}
                 onDelete={onDelete}
                 onDownload={onDownload}
+                onFavourite={onFavourite}
               />
             ))}
           </div>
@@ -177,6 +192,7 @@ export function FileGrid({ items, onOpen, onRename, onDelete, onDownload }) {
                 onRename={onRename}
                 onDelete={onDelete}
                 onDownload={onDownload}
+                onFavourite={onFavourite}
               />
             ))}
           </div>
