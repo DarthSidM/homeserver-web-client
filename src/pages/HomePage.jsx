@@ -6,7 +6,7 @@ import { Navbar } from "@/components/navbar"
 import { Sidebar } from "@/components/sidebar"
 import { FileGrid } from "@/components/file-grid"
 import { CreateModal } from "@/components/create-modal"
-import { loadNodes, handleRename, handleDelete, handleFavourite } from "@/apis/nodeOperations"
+import { loadNodes, handleRename, handleDelete, handleFavourite, loadFavourites } from "@/apis/nodeOperations"
 import { uploadFiles, downloadFile } from "@/apis/fileOperations"
 import { createDirectory } from "@/apis/directoryOperations"
 import { handleGoToRoot, handleGoToPathIndex, openItem } from "@/apis/navigationHelper"
@@ -46,8 +46,18 @@ export default function HomePage() {
     setRequestError("")
 
     try {
-      const nodes = await loadNodes(parentId)
-      setFiles(nodes.map(normalizeNode))
+      const [nodes, favouriteNodes] = await Promise.all([
+        loadNodes(parentId),
+        loadFavourites(),
+      ])
+
+      const favouriteIds = new Set(favouriteNodes.map((node) => node.id || node.ID))
+      const normalizedNodes = nodes.map((node) => ({
+        ...normalizeNode(node),
+        isFavourite: favouriteIds.has(node.id || node.ID),
+      }))
+
+      setFiles(normalizedNodes)
     } catch (error) {
       const message = error?.response?.data?.error || error?.message || "Failed to load nodes"
       setRequestError(message)
@@ -149,6 +159,11 @@ export default function HomePage() {
     try {
       setRequestError("")
       await handleFavourite(item.id)
+      // Toggle the favourite status in UI
+      const updatedFiles = files.map((file) =>
+        file.id === item.id ? { ...file, isFavourite: !file.isFavourite } : file
+      )
+      setFiles(updatedFiles)
     } catch (error) {
       const message = error?.response?.data?.error || error?.message || "Failed to add to favourites"
       setRequestError(message)

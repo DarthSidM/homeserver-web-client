@@ -6,6 +6,11 @@ export const loadNodes = async (parentId) => {
   return response?.data?.nodes || []
 }
 
+export const loadFavourites = async () => {
+  const response = await apiRequest("/nodes/favourites/", { method: "GET" })
+  return response?.data?.nodes || []
+}
+
 export const handleRename = async (itemId, newName) => {
   await apiRequest(`/nodes/${itemId}`, {
     method: "PATCH",

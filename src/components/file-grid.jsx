@@ -64,6 +64,7 @@ function formatDate(dateString) {
 function FileItem({ item, onOpen, onRename, onDelete, onDownload, onFavourite }) {
   const Icon = getFileIcon(item.type, item.mimeType)
   const isFolder = item.type === "folder"
+  const isFavourite = item.isFavourite || false
 
   return (
     <div
@@ -71,14 +72,14 @@ function FileItem({ item, onOpen, onRename, onDelete, onDownload, onFavourite })
       onDoubleClick={() => onOpen?.(item)}
     >
       {/* Favourite Button */}
-      <div className="absolute left-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className={`absolute left-2 top-2 ${isFavourite ? "opacity-100" : "opacity-0"} transition-opacity group-hover:opacity-100`}>
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-yellow-500"
+          className={`h-8 w-8 ${isFavourite ? "text-yellow-500 hover:text-yellow-600" : "text-muted-foreground hover:text-yellow-500"}`}
           onClick={() => onFavourite?.(item)}
         >
-          <Star className="h-4 w-4" />
+          <Star className={`h-4 w-4 ${isFavourite ? "fill-yellow-500" : ""}`} />
           <span className="sr-only">Add to Favourites</span>
         </Button>
       </div>

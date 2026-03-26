@@ -3,7 +3,8 @@ import { Navigate } from "react-router-dom"
 import { Navbar } from "@/components/navbar"
 import { Sidebar } from "@/components/sidebar"
 import { FileGrid } from "@/components/file-grid"
-import { apiRequest } from "@/lib/api-interceptor"
+import { loadFavourites, handleRename, handleDelete, handleFavourite } from "@/apis/nodeOperations"
+import { downloadFile } from "@/apis/fileOperations"
 
 const normalizeNode = (node) => {
 	const nodeType = (node.type || node.Type || "").toLowerCase()
@@ -33,14 +34,17 @@ export default function FavouritePage() {
 	}
 
 	useEffect(() => {
-		const loadFavourites = async () => {
+		const loadFavouritesHandler = async () => {
 			setIsLoading(true)
 			setRequestError("")
 
 			try {
-				const response = await apiRequest("/nodes/favourites/", { method: "GET" })
-				const nodes = response?.data?.nodes || []
-				setFavourites(nodes.map(normalizeNode))
+				const nodes = await loadFavourites()
+				const normalizedNodes = nodes.map((node) => ({
+					...normalizeNode(node),
+					isFavourite: true,
+				}))
+				setFavourites(normalizedNodes)
 			} catch (error) {
 				const message = error?.response?.data?.error || error?.message || "Failed to load favourites"
 				setRequestError(message)
@@ -51,22 +55,22 @@ export default function FavouritePage() {
 			}
 		}
 
-		loadFavourites()
+		loadFavouritesHandler()
 	}, [])
 
-	const handleFavourite = async (item) => {
+	const handleFavouriteNode = async (item) => {
 		try {
 			setRequestError("")
-			await apiRequest(`/nodes/favourites/?node_id=${encodeURIComponent(item.id)}`, {
-				method: "POST",
-			})
+			await handleFavourite(item.id)
+			const updatedFavourites = favourites.filter((fav) => fav.id !== item.id)
+			setFavourites(updatedFavourites)
 		} catch (error) {
 			const message = error?.response?.data?.error || error?.message || "Failed to add to favourites"
 			setRequestError(message)
 		}
 	}
 
-	const handleRename = async (item) => {
+	const handleRenameNode = async (item) => {
 		const newName = window.prompt("Enter new name:", item.name)
 		if (newName === null) return
 
@@ -82,10 +86,7 @@ export default function FavouritePage() {
 
 		try {
 			setRequestError("")
-			await apiRequest(`/nodes/${item.id}`, {
-				method: "PATCH",
-				data: { new_name: trimmedName },
-			})
+			await handleRename(item.id, trimmedName)
 			const updatedFavourites = favourites.map((fav) =>
 				fav.id === item.id ? { ...fav, name: trimmedName } : fav
 			)
@@ -96,15 +97,13 @@ export default function FavouritePage() {
 		}
 	}
 
-	const handleDelete = async (item) => {
+	const handleDeleteNode = async (item) => {
 		const confirmed = window.confirm(`Delete "${item.name}"?`)
 		if (!confirmed) return
 
 		try {
 			setRequestError("")
-			await apiRequest(`/nodes/${item.id}`, {
-				method: "DELETE",
-			})
+			await handleDelete(item.id)
 			const updatedFavourites = favourites.filter((fav) => fav.id !== item.id)
 			setFavourites(updatedFavourites)
 		} catch (error) {
@@ -113,28 +112,10 @@ export default function FavouritePage() {
 		}
 	}
 
-	const handleDownload = async (item) => {
+	const handleDownloadFile = async (item) => {
 		try {
 			setRequestError("")
-
-			const response = await apiRequest(`/files/download/${encodeURIComponent(item.id)}`, {
-				method: "GET",
-				responseType: "blob",
-			})
-
-			const contentDisposition = response?.headers?.["content-disposition"] || ""
-			const fileNameMatch = contentDisposition.match(/filename="?([^\"]+)"?/i)
-			const downloadName = fileNameMatch?.[1] || item.name || "download"
-
-			const blob = new Blob([response.data])
-			const blobUrl = window.URL.createObjectURL(blob)
-			const link = document.createElement("a")
-			link.href = blobUrl
-			link.download = downloadName
-			document.body.appendChild(link)
-			link.click()
-			link.remove()
-			window.URL.revokeObjectURL(blobUrl)
+			await downloadFile(item.id, item.name)
 		} catch (error) {
 			const message = error?.response?.data?.error || error?.message || "Failed to download file"
 			setRequestError(message)
@@ -168,10 +149,10 @@ export default function FavouritePage() {
 					) : (
 						<FileGrid
 							items={favourites}
-							onRename={handleRename}
-							onDelete={handleDelete}
-							onDownload={handleDownload}
-							onFavourite={handleFavourite}
+							onRename={handleRenameNode}
+							onDelete={handleDeleteNode}
+							onDownload={handleDownloadFile}
+							onFavourite={handleFavouriteNode}
 						/>
 					)}
 				</main>
