@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 const navItems = [
   { icon: Home, label: "My Drive", href: "/" },
   { icon: Star, label: "Favourites", href: "/favourites" },
-  { icon: Trash2, label: "Trash", href: "/trash" },
+  // { icon: Trash2, label: "Trash", href: "/trash" },
 ]
 
 export function Sidebar({ onCreateClick }) {

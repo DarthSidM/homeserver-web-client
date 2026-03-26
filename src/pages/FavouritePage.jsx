@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react"
+import { Fragment, useCallback } from "react"
 import { Navigate } from "react-router-dom"
 import { Navbar } from "@/components/navbar"
 import { Sidebar } from "@/components/sidebar"
 import { FileGrid } from "@/components/file-grid"
-import { loadFavourites, handleRename, handleDelete, handleFavourite } from "@/apis/nodeOperations"
+import { loadFavourites, handleRename, handleDelete, handleFavourite, loadNodes } from "@/apis/nodeOperations"
 import { downloadFile } from "@/apis/fileOperations"
+import { openItem, handleGoToRoot, handleGoToPathIndex } from "@/apis/navigationHelper"
 
 const normalizeNode = (node) => {
 	const nodeType = (node.type || node.Type || "").toLowerCase()
@@ -27,6 +29,8 @@ export default function FavouritePage() {
 	const [favourites, setFavourites] = useState([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [requestError, setRequestError] = useState("")
+	const [currentParentId, setCurrentParentId] = useState("")
+	const [pathStack, setPathStack] = useState([])
 	const token = localStorage.getItem("token")
 
 	if (!token) {
@@ -39,11 +43,24 @@ export default function FavouritePage() {
 			setRequestError("")
 
 			try {
-				const nodes = await loadFavourites()
-				const normalizedNodes = nodes.map((node) => ({
+				const [allFavourites, nodesInDirectory] = await Promise.all([
+					loadFavourites(),
+					loadNodes(currentParentId),
+				])
+
+				// Create a set of favourite IDs for efficient lookup
+				const favouriteIds = new Set(allFavourites.map((node) => node.id || node.ID))
+
+				// Filter nodes to show only those that are marked as favourite
+				const favouritesInDirectory = nodesInDirectory.filter((node) =>
+					favouriteIds.has(node.id || node.ID)
+				)
+
+				const normalizedNodes = favouritesInDirectory.map((node) => ({
 					...normalizeNode(node),
 					isFavourite: true,
 				}))
+
 				setFavourites(normalizedNodes)
 			} catch (error) {
 				const message = error?.response?.data?.error || error?.message || "Failed to load favourites"
@@ -56,7 +73,7 @@ export default function FavouritePage() {
 		}
 
 		loadFavouritesHandler()
-	}, [])
+	}, [currentParentId])
 
 	const handleFavouriteNode = async (item) => {
 		try {
@@ -68,6 +85,19 @@ export default function FavouritePage() {
 			const message = error?.response?.data?.error || error?.message || "Failed to add to favourites"
 			setRequestError(message)
 		}
+	}
+
+	// Handle opening a file or folder
+	const handleOpen = (item) => {
+		openItem(item, setPathStack, setCurrentParentId)
+	}
+
+	const handleGoToRootClicked = () => {
+		handleGoToRoot(setPathStack, setCurrentParentId)
+	}
+
+	const handleGoToPathIndexClicked = (index) => {
+		handleGoToPathIndex(index, pathStack, setPathStack, setCurrentParentId)
 	}
 
 	const handleRenameNode = async (item) => {
@@ -132,6 +162,27 @@ export default function FavouritePage() {
 				<main className="flex flex-1 flex-col overflow-hidden">
 					<div className="border-b border-border px-6 py-4">
 						<h1 className="text-xl font-semibold text-foreground">Favourites</h1>
+						<div className="mt-2 flex items-center gap-2 overflow-x-auto text-sm text-muted-foreground">
+							<button
+								type="button"
+								onClick={handleGoToRootClicked}
+								className="whitespace-nowrap hover:text-foreground"
+							>
+								Root
+							</button>
+							{pathStack.map((entry, index) => (
+								<Fragment key={entry.id}>
+									<span>/</span>
+									<button
+										type="button"
+										onClick={() => handleGoToPathIndexClicked(index)}
+										className="whitespace-nowrap hover:text-foreground"
+									>
+										{entry.name}
+									</button>
+								</Fragment>
+							))}
+						</div>
 					</div>
 
 					{isLoading ? (
@@ -149,6 +200,7 @@ export default function FavouritePage() {
 					) : (
 						<FileGrid
 							items={favourites}
+							onOpen={handleOpen}
 							onRename={handleRenameNode}
 							onDelete={handleDeleteNode}
 							onDownload={handleDownloadFile}
