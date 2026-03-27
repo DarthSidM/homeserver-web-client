@@ -1,7 +1,7 @@
 "use client"
 
 import { Fragment, useCallback, useEffect, useState } from "react"
-import { Navigate } from "react-router-dom"
+import { Navigate, useLocation } from "react-router-dom"
 import { Navbar } from "@/components/navbar"
 import { Sidebar } from "@/components/sidebar"
 import { FileGrid } from "@/components/file-grid"
@@ -29,6 +29,7 @@ const normalizeNode = (node) => {
 }
 
 export default function HomePage() {
+  const location = useLocation()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [files, setFiles] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -67,6 +68,16 @@ export default function HomePage() {
       setIsLoading(false)
     }
   }, [])
+
+  // Handle search result selection from navbar
+  useEffect(() => {
+    if (location.state?.selectedNode) {
+      const normalizedNode = normalizeNode(location.state.selectedNode)
+      openItem(normalizedNode, setPathStack, setCurrentParentId)
+      // Clear the state to prevent re-opening on navigation back
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state?.selectedNode])
 
   // Load nodes when directory context changes.
   useEffect(() => {

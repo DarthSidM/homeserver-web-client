@@ -29,3 +29,9 @@ export const handleFavourite = async (itemId) => {
     method: "POST",
   })
 }
+
+export const searchNodes = async (query) => {
+  if (!query.trim()) return []
+  const response = await apiRequest(`/nodes/search?q=${encodeURIComponent(query)}`, { method: "GET" })
+  return response?.data.nodes || []
+}
