@@ -43,20 +43,17 @@ export default function FavouritePage() {
 			setRequestError("")
 
 			try {
-				const [allFavourites, nodesInDirectory] = await Promise.all([
-					loadFavourites(),
-					loadNodes(currentParentId),
-				])
+				let nodesToDisplay
+				
+				if (currentParentId) {
+					// Inside a folder - load all nodes in that folder
+					nodesToDisplay = await loadNodes(currentParentId)
+				} else {
+					// At root level - load all favorited nodes
+					nodesToDisplay = await loadFavourites()
+				}
 
-				// Create a set of favourite IDs for efficient lookup
-				const favouriteIds = new Set(allFavourites.map((node) => node.id || node.ID))
-
-				// Filter nodes to show only those that are marked as favourite
-				const favouritesInDirectory = nodesInDirectory.filter((node) =>
-					favouriteIds.has(node.id || node.ID)
-				)
-
-				const normalizedNodes = favouritesInDirectory.map((node) => ({
+				const normalizedNodes = nodesToDisplay.map((node) => ({
 					...normalizeNode(node),
 					isFavourite: true,
 				}))

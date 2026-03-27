@@ -95,11 +95,11 @@ function FileItem({ item, onOpen, onRename, onDelete, onDownload, onFavourite })
       </p>
 
       {/* Meta info */}
-      <p className="text-xs text-muted-foreground">
+      {/* <p className="text-xs text-muted-foreground">
         {isFolder 
           ? `${item.itemCount || 0} items` 
           : formatFileSize(item.size)}
-      </p>
+      </p> */}
 
       {/* Actions Menu */}
       <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
