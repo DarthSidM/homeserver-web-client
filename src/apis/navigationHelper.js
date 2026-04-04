@@ -7,12 +7,14 @@ export const handleNavigateToFolder = (item, setPathStack, setCurrentParentId) =
   return false
 }
 
-export const openItem = (item, setPathStack, setCurrentParentId) => {
+export const openItem = (item, setPathStack, setCurrentParentId, navigate) => {
   const isFolder = handleNavigateToFolder(item, setPathStack, setCurrentParentId)
   if (!isFolder) {
-    // TODO: Open file preview or download
-    // Example:
-    // window.open(`/api/files/${item.id}/preview`)
+    if (typeof navigate === "function" && item?.id) {
+      navigate(`/editor/${encodeURIComponent(item.id)}`)
+      return
+    }
+
     console.log("[v0] Opening file:", item.name)
   }
 }

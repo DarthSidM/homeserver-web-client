@@ -1,7 +1,7 @@
 "use client"
 
 import { Fragment, useCallback, useEffect, useState } from "react"
-import { Navigate, useLocation } from "react-router-dom"
+import { Navigate, useLocation, useNavigate } from "react-router-dom"
 import { Navbar } from "@/components/navbar"
 import { Sidebar } from "@/components/sidebar"
 import { FileGrid } from "@/components/file-grid"
@@ -30,6 +30,7 @@ const normalizeNode = (node) => {
 
 export default function HomePage() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [files, setFiles] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -73,11 +74,11 @@ export default function HomePage() {
   useEffect(() => {
     if (location.state?.selectedNode) {
       const normalizedNode = normalizeNode(location.state.selectedNode)
-      openItem(normalizedNode, setPathStack, setCurrentParentId)
+      openItem(normalizedNode, setPathStack, setCurrentParentId, navigate)
       // Clear the state to prevent re-opening on navigation back
       window.history.replaceState({}, document.title)
     }
-  }, [location.state?.selectedNode])
+  }, [location.state?.selectedNode, navigate])
 
   // Load nodes when directory context changes.
   useEffect(() => {
@@ -122,7 +123,7 @@ export default function HomePage() {
 
   // Handle opening a file or folder
   const handleOpen = (item) => {
-    openItem(item, setPathStack, setCurrentParentId)
+    openItem(item, setPathStack, setCurrentParentId, navigate)
   }
 
   // Handle file/folder rename
